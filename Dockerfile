@@ -1,5 +1,16 @@
 FROM debian:stretch-slim
-LABEL maintainer="Thomas VIAL"
+
+ARG VCS_REF
+ARG VCS_VERSION
+
+LABEL maintainer="Thomas VIAL"  \
+    org.label-schema.name="docker-mailserver" \
+    org.label-schema.description="A fullstack but simple mailserver (smtp, imap, antispam, antivirus, ssl...)" \
+    org.label-schema.url="https://github.com/tomav/docker-mailserver" \
+    org.label-schema.vcs-ref=$VCS_REF \
+    org.label-schema.vcs-url="https://github.com/tomav/docker-mailserver" \
+    org.label-schema.version=$VCS_VERSION \
+    org.label-schema.schema-version="1.0"
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV VIRUSMAILS_DELETE_DELAY=7
@@ -44,6 +55,8 @@ RUN echo "deb http://http.debian.net/debian stretch-backports main" | tee -a /et
     iproute2 \
     iptables \
     locales \
+    logwatch \
+    libdate-manip-perl \
     liblz4-tool \
     libmail-spf-perl \
     libnet-dns-perl \
@@ -90,6 +103,7 @@ RUN echo "deb http://http.debian.net/debian stretch-backports main" | tee -a /et
     dovecot-managesieved \
     dovecot-pop3d \
     dovecot-sieve \
+    dovecot-solr \
     && \
   apt-get autoclean && \
   rm -rf /var/lib/apt/lists/* && \
@@ -99,7 +113,8 @@ RUN echo "deb http://http.debian.net/debian stretch-backports main" | tee -a /et
   touch /var/log/auth.log && \
   update-locale && \
   rm -f /etc/cron.weekly/fstrim && \
-  rm -f /etc/postsrsd.secret
+  rm -f /etc/postsrsd.secret && \
+  rm -f /etc/cron.daily/00logwatch
 
 # install filebeat for logging
 RUN curl https://packages.elasticsearch.org/GPG-KEY-elasticsearch | apt-key add - && \
@@ -118,7 +133,8 @@ RUN echo "0 */6 * * * clamav /usr/bin/freshclam --quiet" > /etc/cron.d/clamav-fr
   sed -i 's/Foreground false/Foreground true/g' /etc/clamav/clamd.conf && \
   sed -i 's/AllowSupplementaryGroups false/AllowSupplementaryGroups true/g' /etc/clamav/clamd.conf && \
   mkdir /var/run/clamav && \
-  chown -R clamav:root /var/run/clamav
+  chown -R clamav:root /var/run/clamav && \
+  rm -rf /var/log/clamav/
 
 # Configures Dovecot
 COPY target/dovecot/auth-passwdfile.inc target/dovecot/??-*.conf /etc/dovecot/conf.d/
