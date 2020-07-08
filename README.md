@@ -7,11 +7,23 @@ A fullstack but simple mail server (smtp, imap, antispam, antivirus...).
 Only configuration files, no SQL database. Keep it simple and versioned.
 Easy to deploy and upgrade.
 
+## ANNOUNCEMENT
+
+At this point we have merged the next branch based on Debian Buster into master.
+That means the docker image latest uses Buster. The change may break things!
+
+The following possibly breaking changes are known:
+- Filebeat is removed and should be handled by another container, see [Wiki](https://github.com/tomav/docker-mailserver/wiki/).
+- Dovecot will be downgraded a little bit (same major version) so that we can use the official Debian version.
+
+If you want to stick to the old version a while longer, either switch to stable or to a specific version.
+If you run into problems, please raise issues and ask for help. Don't forget to provide details.
+
+
 Includes:
 
 - [Postfix](http://www.postfix.org) with smtp or ldap auth
-- [Dovecot](https://www.dovecot.org) for sasl, imap (and optional pop3) with ssl support, with ldap auth
-  - Dovecot is installed from the [Dovecot Community Repo](https://wiki2.dovecot.org/PrebuiltBinaries)
+- [Dovecot](https://www.dovecot.org) for sasl, imap (and optional pop3) with ssl support, with ldap auth, sieve and [quotas](https://github.com/tomav/docker-mailserver/wiki/Configure-Accounts#mailbox-quota)
 - saslauthd with ldap auth
 - [Amavis](https://www.amavis.org/)
 - [Spamassasin](http://spamassassin.apache.org/) supporting custom rules
@@ -109,18 +121,22 @@ If you got any problems with SPF and/or forwarding mails, give [SRS](https://git
 
 Your config folder will be mounted in `/tmp/docker-mailserver/`. To understand how things work on boot, please have a look at [start-mailserver.sh](https://github.com/tomav/docker-mailserver/blob/master/target/start-mailserver.sh)
 
-`restart: always` ensures that the mail server container (and ELK container when using the mail server together with ELK stack) is automatically restarted by Docker in cases like a Docker service or host restart or container exit.
+`restart: always` ensures that the mail server container (and Filebeat/ELK containers when using the mail server together with ELK stack) is automatically restarted by Docker in cases like a Docker service or host restart or container exit.
 
 #### Exposed ports
-* 25 receiving email from other mailservers
-* 465 SSL Client email submission
-* 587 TLS Client email submission
-* 143 StartTLS IMAP client
-* 993 TLS/SSL IMAP client
-* 110 POP3 client
-* 995 TLS/SSL POP3 client
 
-`Note: Port 25 is only for receiving email from other mailservers and not for submitting email. You need to use port 465 or 587 for this.`
+| Protocol | Opt-in Encryption<sup>1</sup> | Enforced Encryption | Purpose              |
+|----------|-------------------------------|---------------------|----------------------|
+| SMTP     | 25                            | N/A                 | Transfer<sup>2</sup> |
+| ESMTP    | 587                           | 465<sup>3</sup>     | Submission           |
+| POP3     | 110                           | 995                 | Retrieval            |
+| IMAP4    | 143                           | 993                 | Retrieval            |
+
+1. A connection *may* be secured over TLS when both ends support `STARTTLS`. On ports 110, 143 and 587, `docker-mailserver` will reject a connection that cannot be secured. Port 25 is [required](https://serverfault.com/questions/623692/is-it-still-wrong-to-require-starttls-on-incoming-smtp-messages) to support insecure connections.
+2. Receives email and filters for spam and viruses. For submitting outgoing mail you should prefer the submission ports(465, 587), which require authentication. Unless a relay host is configured, outgoing email will leave the server via port 25(thus outbound traffic must not be blocked by your provider or firewall).
+3. A submission port since 2018, [RFC 8314](https://tools.ietf.org/html/rfc8314). Originally a secure variant of port 25.
+
+See the [wiki](https://github.com/tomav/docker-mailserver/wiki) for further details and best practice advice, especially regarding security concerns.
 
 ##### Examples with just the relevant environmental variables:
 
@@ -145,6 +161,7 @@ services:
       - ./config/:/tmp/docker-mailserver/
     environment:
       - ENABLE_SPAMASSASSIN=1
+      - SPAMASSASSIN_SPAM_TO_INBOX=1
       - ENABLE_CLAMAV=1
       - ENABLE_FAIL2BAN=1
       - ENABLE_POSTGREY=1
@@ -186,6 +203,7 @@ services:
       - ./config/:/tmp/docker-mailserver/
     environment:
       - ENABLE_SPAMASSASSIN=1
+      - SPAMASSASSIN_SPAM_TO_INBOX=1
       - ENABLE_CLAMAV=1
       - ENABLE_FAIL2BAN=1
       - ENABLE_POSTGREY=1
@@ -298,11 +316,13 @@ Enables the Sender Rewriting Scheme. SRS is needed if your mail server acts as f
 
 ##### PERMIT_DOCKER
 
-Set different options for mynetworks option (can be overwrite in postfix-main.cf)
+Set different options for mynetworks option (can be overwrite in postfix-main.cf) **WARNING**: Adding the docker network's gateway to the list of trusted hosts, e.g. using the `network` or `connected-networks` option, can create an [**open relay**](https://en.wikipedia.org/wiki/Open_mail_relay), [for instance](https://github.com/tomav/docker-mailserver/issues/1405#issuecomment-590106498) if IPv6 is enabled on the host machine but not in Docker.
   - **empty** => localhost only
   - host => Add docker host (ipv4 only)
   - network => Add the docker default bridge network (172.16.0.0/12); **WARNING**: `docker-compose` might use others (e.g. 192.168.0.0/16) use `PERMIT_DOCKER=connected-networks` in this case
   - connected-networks => Add all connected docker networks (ipv4 only)
+
+Note: you probably want to [set `POSTFIX_INET_PROTOCOLS=ipv4`](#postfix_inet_protocols) to make it work fine with Docker.
 
 ##### VIRUSMAILS_DELETE_DELAY
 
@@ -332,6 +352,14 @@ Enabled by ENABLE_POSTFIX_VIRTUAL_TRANSPORT. Specify the final delivery of postf
 Set the mailbox size limit for all users. If set to zero, the size will be unlimited (default).
 
 - **empty** => 0 (no limit)
+
+
+##### ENABLE_QUOTAS
+
+- **1** => Dovecot quota is enabled
+- 0 => Dovecot quota is disabled
+  
+See [mailbox quota](https://github.com/tomav/docker-mailserver/wiki/Configure-Accounts#mailbox-quota).
 
 ##### POSTFIX\_MESSAGE\_SIZE\_LIMIT
 
@@ -368,6 +396,14 @@ Set the message size limit for all users. If set to zero, the size will be unlim
   - mdbox ==> (experimental) uses Dovecot high-performance mailbox format, multiple messages per file and multiple files per box
 
 This option has been added in November 2019. Using other format than Maildir is considered as experimental in docker-mailserver and should only be used for testing purpose. For more details, please refer to [Dovecot Documentation](https://wiki2.dovecot.org/MailboxFormat).
+
+##### POSTFIX_INET_PROTOCOLS
+
+- **all** => All possible protocols.
+- ipv4 => Use only IPv4 traffic. Most likely you want this behind Docker.
+- ipv6 => Use only IPv6 traffic.
+
+Note: More details in http://www.postfix.org/postconf.5.html#inet_protocols
 
 ## Reports
 
@@ -449,8 +485,25 @@ Finally the logrotate interval **may** affect the period for generated reports. 
 
 ##### ENABLE_SPAMASSASSIN
 
+
   - **0** => Spamassassin is disabled
   - 1 => Spamassassin is enabled
+
+**/!\\ Spam delivery:** when Spamassassin is enabled, messages marked as spam WILL NOT BE DELIVERED. 
+Use `SPAMASSASSIN_SPAM_TO_INBOX=1` for receiving spam messages.
+
+##### SPAMASSASSIN_SPAM_TO_INBOX
+
+
+  - **0** => Spam messages will be bounced (_rejected_) without any notification (_dangerous_).
+  - 1 => Spam messages will be delivered to the inbox and tagged as spam using `SA_SPAM_SUBJECT`.
+
+##### MOVE_SPAM_TO_JUNK
+
+  - **1** => Spam messages will be delivered in the `Junk` folder.
+  - 0 => Spam messages will be delivered in the mailbox.
+
+Note: this setting needs `SPAMASSASSIN_SPAM_TO_INBOX=1`
 
 ##### SA_TAG
 
@@ -474,7 +527,7 @@ Note: this spamassassin setting needs `ENABLE_SPAMASSASSIN=1`. By default, the m
 
   - **\*\*\*SPAM\*\*\*** => add tag to subject if spam detected
 
-Note: this spamassassin setting needs `ENABLE_SPAMASSASSIN=1`
+Note: this spamassassin setting needs `ENABLE_SPAMASSASSIN=1`. Add the spamassassin score to the subject line by inserting the keyword _SCORE_: **\*\*\*SPAM(_SCORE_)\*\*\***.
 
 ##### SA_SHORTCIRCUIT_BAYES_SPAM
 
