@@ -1,60 +1,48 @@
 # Changelog
 
-## Next Major Release
+## `v8.0.1`
 
-- migrated the whole repository to `docker-mailserver/docker-mailserver`
-- switched from TravisCI to GitHub Actions for CI/CD
-- integrated stale issues action to automatically close stale issues
-- adjusted issue templates
-- adjusted `README.md` and split off `ENVIRONMENT.md`
-- completely refactored `Dockerfile`
-- adjusted `Makefile`
+This release is a hotfix for #1781.
 
-## v7.2.0
+- **[spam]** `bl.spamcop.net` was removed from the list of spam lists since the domain expired and became unusable
 
-- Refactored `target/bin/`
-- Enhanced and refactored all tests
-- Added Code of Conduct
-- Redesigned environment variable use
-- Added missing Dovecot descriptions
+## `v8.0.0`
 
-## v7.1.0
+The transfer of the old repository to the new organization has completed. This release marks the new starting point for `docker-mailserver` in the `docker-mailserver` organization. Various improvements were made, small bugs fixed and the complete CI was transferred.
 
-- The use of default variables has changed slightly. Consult the [environment variables](./ENVIRONMENT.md) page
-- New contributing guidelines were added
-- Added coherent coding style and linting
-- Added option to use non-default network interface
-- SELinux is now supported
+- **[general]** transferred the whole repository to `docker-mailserver/docker-mailserver`
+- **[general]** adjusted `README.md` and split off `ENVIRONMENT.md`
+- **[ci]** usage of the GitHub Container Registry
+- **[ci]** switched from TravisCI to **GitHub Actions for CI/CD**
+  - now building images for `amd64` and `arm/v7` and `arm/64`
+  - integrated stale issues action to automatically close stale issues
+  - adjusted issue templates
+- **[build]** completely refactored and improved the `Dockerfile`
+- **[build]** improved the `Makefile`
+- **[image improvement]** added a proper init process
+- **[image improvement]** improved logging significantly
+- **[image improvement]** major LDAP improvements
+- **[bugfixes]** miscellaneous bug fixes and improvements
 
-## 6.2.0+
+### Breaking changes of release `8.0.0`
 
-- see <https://github.com/docker-mailserver/docker-mailserver/releases>
+- **[image improvement]** log-level now defaults to `warn`
+- **[image improvement]** DKIM default key size now 4096
+- **[general]** the `:latest` tag is now the latest release and `:edge` represents the latest push on `master`
+- **[general]** URL changed from `tomav/...` to `docker-mailserver/...`
 
-## 6.1.0
+## `v7.2.0`
 
-- Deliver root mail (#952)
-- don't update permissions on non-existent file (#956)
-- Update docker-configomat (#959)
-- Support for detecting running container mount (#884)
-- Report sender (#965)
-  added REPORT_SENDER env variable to the container.
-- Add saslauthd option for ldap_start_tls & ldap_tls_check_peer - (#979, #980)
-- fix SASL domain (#892, #970)
-- DOMAINNAME can fail to be set in postsrsd-wrapper.sh (#989)
+- **[scripts]** refactored `target/bin/`
+- **[scripts]** redesigned environment variable use
+- **[general]** added Code of Conduct
+- **[general]** added missing Dovecot descriptions
+- **[tests]** enhanced and refactored all tests
 
-## 6.0.0
+## `v7.1.0`
 
-- Implementation of multi-domain relay hosts (#922, #926)
-  AWS_SES_HOST and AWS_SES_PORT are deprecated now.
-  RELAY_HOST and RELAY_PORT are introduced to replace them.
-- Password creation fix (#908, #914)
-- Fixes 'duplicate log entry for /var/log/mail/mail.log' (#925, #927)
-- fixed cleanup (mail_with_relays didn't get cleaned up) (#930)
-- fix line breaks in postfix-summary mail error case (#936)
-- Set default virus delete time (#932, #935)
-  This defaults to 7 days
-- Ensure that the account contains a @ (#923, #924)
-- Introducing global filters. (#934)
-- add missing env vars to docker-compose.yml (#937)
-- set postmaster address to a sensible default (#938, #939, #940)
-- Testfixes & more (#942)
+- **[scripts]** use of default variables has changed slightly (consult [environment variables](./ENVIRONMENT.md))
+- **[scripts]** Added coherent coding style and linting
+- **[scripts]** Added option to use non-default network interface
+- **[general]** new contributing guidelines were added
+- **[general]** SELinux is now supported

@@ -60,6 +60,7 @@ setup_file() {
 	docker exec mail /bin/sh -c "nc 0.0.0.0 25 < /tmp/docker-mailserver-test/email-templates/existing-alias-recipient-delimiter.txt"
 	docker exec mail /bin/sh -c "nc 0.0.0.0 25 < /tmp/docker-mailserver-test/email-templates/existing-user1.txt"
 	docker exec mail /bin/sh -c "nc 0.0.0.0 25 < /tmp/docker-mailserver-test/email-templates/existing-user2.txt"
+	docker exec mail /bin/sh -c "nc 0.0.0.0 25 < /tmp/docker-mailserver-test/email-templates/existing-user3.txt"
 	docker exec mail /bin/sh -c "nc 0.0.0.0 25 < /tmp/docker-mailserver-test/email-templates/existing-added.txt"
 	docker exec mail /bin/sh -c "nc 0.0.0.0 25 < /tmp/docker-mailserver-test/email-templates/existing-user-and-cc-local-alias.txt"
 	docker exec mail /bin/sh -c "nc 0.0.0.0 25 < /tmp/docker-mailserver-test/email-templates/existing-regexp-alias-external.txt"
@@ -248,6 +249,7 @@ teardown_file() {
  1 <user1@localhost.localdomain>, orig_to=<root>
  1 <user1~test@localhost.localdomain>
  2 <user2@otherdomain.tld>
+ 1 <user3@localhost.localdomain>
 EOF
 }
 
@@ -338,7 +340,8 @@ EOF
   assert_success
   assert_line --index 0 "user1@localhost.localdomain"
   assert_line --index 1 "user2@otherdomain.tld"
-  assert_line --index 2 "added@localhost.localdomain"
+  assert_line --index 2 "user3@localhost.localdomain"
+  assert_line --index 3 "added@localhost.localdomain"
 }
 
 @test "checking accounts: user mail folder for user1" {
@@ -348,6 +351,11 @@ EOF
 
 @test "checking accounts: user mail folder for user2" {
   run docker exec mail /bin/bash -c "ls -d /var/mail/otherdomain.tld/user2"
+  assert_success
+}
+
+@test "checking accounts: user mail folder for user3" {
+  run docker exec mail /bin/bash -c "ls -d /var/mail/localhost.localdomain/user3/mail"
   assert_success
 }
 
@@ -1184,7 +1192,6 @@ EOF
   assert_success
   run docker exec mail /bin/sh -c "nc 0.0.0.0 25 < /tmp/docker-mailserver-test/email-templates/quota-exceeded.txt"
   assert_success
-
   # check for quota warn message existence
   run repeat_until_success_or_timeout 20 sh -c "docker exec mail sh -c 'grep \"Subject: quota warning\" /var/mail/otherdomain.tld/quotauser/new/ -R'"
   assert_success
@@ -1192,7 +1199,6 @@ EOF
   run repeat_until_success_or_timeout 20 sh -c "docker logs mail | grep 'Quota exceeded (mailbox for user is full)'"
   assert_success
 
-  docker exec mail ls -l '/var/mail/otherdomain.tld/quotauser/new/'
   # ensure only the first big message and the warn message are present (other messages are rejected: mailbox is full)
   run docker exec mail sh -c 'ls /var/mail/otherdomain.tld/quotauser/new/ | wc -l'
   assert_success

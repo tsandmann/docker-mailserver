@@ -12,7 +12,7 @@ A fullstack but simple mail server (SMTP, IMAP, LDAP, Antispam, Antivirus, etc.)
 [Why this image was created.](http://tvi.al/simple-mail-server-with-docker/)
 
 1. [Included Services](#included-services)
-2. [Opening Issues and Contributing](#opening-issues-and-contributing)
+2. [Issues and Contributing](./CONTRIBUTING.md)
 3. [Requirements](#requirements)
 4. [Usage](#usage)
 5. [Examples](#examples)
@@ -33,16 +33,12 @@ A fullstack but simple mail server (SMTP, IMAP, LDAP, Antispam, Antivirus, etc.)
 - [Postscreen](http://www.postfix.org/POSTSCREEN_README.html)
 - [Postgrey](https://postgrey.schweikert.ch/)
 - [LetsEncrypt](https://letsencrypt.org/) and self-signed certificates
-- [Setup script](https://github.com/docker-mailserver/docker-mailserver/wiki/Setup-docker-mailserver-using-the-script-setup.sh) to easily configure and maintain your mailserver
+- [Setup script](https://github.com/docker-mailserver/docker-mailserver/wiki/setup.sh) to easily configure and maintain your mailserver
 - Basic [Sieve support](https://github.com/docker-mailserver/docker-mailserver/wiki/Configure-Sieve-filters) using dovecot
 - SASLauthd with LDAP auth
 - Persistent data and state
 - [CI/CD](https://github.com/docker-mailserver/docker-mailserver/actions)
 - [Extension Delimiters](http://www.postfix.org/postconf.5.html#recipient_delimiter) (`you+extension@example.com` go to `you@example.com`)
-
-## Opening Issues and Contributing
-
-**Before opening an issue**, read this `README` carefully, use the [Wiki](https://github.com/docker-mailserver/docker-mailserver/wiki/), the Postfix/Dovecot documentation and your search engine you trust. The issue tracker is not meant to be used for unrelated questions! If you'd like to contribute, read [`CONTRIBUTING.md`](./CONTRIBUTING.md) thoroughly.
 
 ## Requirements
 
@@ -156,17 +152,17 @@ If you'd like to change, patch or alter files or behavior of `docker-mailserver`
 # ! THIS IS AN EXAMPLE !
 
 # If you modify any supervisord configuration, make sure
-# to run "supervisorctl update" afterwards.
+# to run `supervisorctl update` and/or `supervisorctl reload` afterwards.
 
-set -euo pipefail
-echo 'user-patches.sh started'
+# shellcheck source=/dev/null
+. /usr/local/bin/helper-functions.sh
+
+_notify 'Applying user-patches'
 
 if ! grep '192.168.0.1' /etc/hosts
 then
   echo -e '192.168.0.1 some.domain.com' >> /etc/hosts
 fi
-
-echo 'user-patches.sh finished successfully'
 ```
 
 And you're done. The user patches script runs right before starting daemons. That means, all the other configuration is in place, so the script can make final adjustments.
@@ -190,7 +186,7 @@ We are currently providing support for Linux. Windows is _not_ supported and is 
 ``` BASH
 docker-compose down
 docker pull docker.io/mailserver/docker-mailserver:<VERSION TAG>
-docker-compose up -d mail
+docker-compose up -d mailserver
 ```
 
 You're done! And don't forget to have a look at the remaining functions of the `setup.sh` script with `./setup.sh -h`.
@@ -224,7 +220,7 @@ This example provides you only with a basic example of what a minimal setup coul
 version: '3.8'
 
 services:
-  mail:
+  mailserver:
     image: docker.io/mailserver/docker-mailserver:latest
     hostname: mail          # ${HOSTNAME}
     domainname: domain.com  # ${DOMAINNAME}
@@ -265,7 +261,7 @@ volumes:
 version: '3.8'
 
 services:
-  mail:
+  mailserver:
     image: docker.io/mailserver/docker-mailserver:latest
     hostname: mail          # ${HOSTNAME}
     domainname: domain.com  # ${DOMAINNAME}
